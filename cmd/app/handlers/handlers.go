@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 	"todo-list/tools/redis"
@@ -11,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TODO: пересмотреть типы, оч.надо)
 type Task struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -53,6 +55,13 @@ func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
 		tasks = append(tasks, task)
 	}
 
+	sort.Slice(tasks, func(i, j int) bool {
+		idI, _ := strconv.Atoi(tasks[i].ID)
+		idJ, _ := strconv.Atoi(tasks[j].ID)
+		return idI < idJ
+	})
+
+	fmt.Println(tasks)
 	json.NewEncoder(response).Encode(tasks)
 }
 
