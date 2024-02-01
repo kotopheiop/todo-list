@@ -13,8 +13,8 @@ func main() {
 	router := routes.NewRouter()
 
 	c := cors.New(cors.Options{
-		AllowedMethods:   []string{"GET", "POST"}, // Замените на методы, которые вы хотите разрешить
-		AllowedHeaders:   []string{"*"},           // Замените на заголовки, которые вы хотите разрешить
+		AllowedMethods:   []string{"GET", "POST"},
+		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
 
