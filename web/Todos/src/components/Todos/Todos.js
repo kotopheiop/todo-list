@@ -29,10 +29,7 @@ export default {
             if (input.value.value !== "") {
                 axios.post('/api/task', {name: input.value.value})
                     .then(response => {
-                        let task;
-                        task = response.data
-                        task.complete = task.complete === 'true';
-                        missions.push(task);
+                        missions.push(response.data);
                         input.value.value = "";
                     })
                     .catch(error => {
@@ -44,11 +41,9 @@ export default {
         }
 
         function Edit() {
-            console.log(task_edit);
             if (task_edit.value.select_task_for_edit) {
-                axios.post(`/api/task/${task_edit.value.index}/update`, {name: input.value.value})
+                axios.put(`/api/task/${task_edit.value.index}`, {name: input.value.value})
                     .then(response => {
-                        console.log(response)
                         let mission = missions.find(mission => mission.id === task_edit.value.index);
                         if (mission) {
                             mission.name = input.value.value;
@@ -65,7 +60,7 @@ export default {
 
 
         function ChangeCondition(index) {
-            axios.post(`/api/task/${index}/complete`)
+            axios.put(`/api/task/${index}/complete`)
                 .then(response => {
                     toast.success("Статус задачи изменен");
                 })
@@ -75,7 +70,7 @@ export default {
         }
 
         function Delete(index) {
-            axios.post(`/api/task/${index}/delete`)
+            axios.delete(`/api/task/${index}`)
                 .then(response => {
                     toast.success("Задача удалена");
                 })
@@ -88,13 +83,11 @@ export default {
             .then(response => {
                 if (response.data !== null) {
                     response.data.forEach(task => {
-                        task.complete = task.complete === 'true';
                         missions.push(task)
                     });
                 }
             })
             .catch(error => {
-                console.log(error);
                 toast.error(error.message);
             });
 

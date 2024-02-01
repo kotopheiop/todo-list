@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -14,14 +14,14 @@ import (
 
 // TODO: пересмотреть типы, оч.надо)
 type Task struct {
-	ID        string    `json:"id"`
+	ID        int       `json:"id"`
 	Name      string    `json:"name"`
-	Complete  string    `json:"complete"`
+	Complete  bool      `json:"complete"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("GetAllTasksEndpoint")
+	log.Println("GetAllTasksEndpoint")
 
 	keys, err := redis.Client.Keys("*").Result()
 	if err != nil {
@@ -47,25 +47,26 @@ func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 
+		id, _ := strconv.Atoi(key)
+		complete, _ := strconv.ParseBool(taskMap["complete"])
+
 		task := Task{
-			ID:       key,
+			ID:       id,
 			Name:     taskMap["name"],
-			Complete: taskMap["complete"],
+			Complete: complete,
 		}
 		tasks = append(tasks, task)
 	}
 
 	sort.Slice(tasks, func(i, j int) bool {
-		idI, _ := strconv.Atoi(tasks[i].ID)
-		idJ, _ := strconv.Atoi(tasks[j].ID)
-		return idI < idJ
+		return tasks[i].ID < tasks[j].ID
 	})
 
 	json.NewEncoder(response).Encode(tasks)
 }
 
 func CreateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("CreateTaskEndpoint")
+	log.Println("CreateTaskEndpoint")
 
 	var task Task
 	err := json.NewDecoder(request.Body).Decode(&task)
@@ -79,13 +80,13 @@ func CreateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	task.ID = strconv.FormatInt(taskID, 10)
-	task.Complete = "false"
+	task.ID = int(taskID)
+	task.Complete = false
 	task.CreatedAt = time.Now()
 
-	err = redis.Client.HMSet(task.ID, map[string]interface{}{
+	err = redis.Client.HMSet(strconv.Itoa(task.ID), map[string]interface{}{
 		"name":       task.Name,
-		"complete":   task.Complete,
+		"complete":   strconv.FormatBool(task.Complete),
 		"created_at": task.CreatedAt.String(),
 	}).Err()
 	if err != nil {
@@ -98,7 +99,7 @@ func CreateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 }
 
 func GetTaskEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("GetTaskEndpoint")
+	log.Println("GetTaskEndpoint")
 	params := mux.Vars(request)
 
 	result, err := redis.Client.HGetAll(params["id"]).Result()
@@ -112,11 +113,14 @@ func GetTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	json.NewEncoder(response).Encode(&Task{ID: params["id"], Name: result["name"], Complete: result["complete"]})
+	complete, _ := strconv.ParseBool(result["complete"])
+	id, _ := strconv.Atoi(params["id"])
+
+	json.NewEncoder(response).Encode(&Task{ID: id, Name: result["name"], Complete: complete})
 }
 
 func CompleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("CompleteTaskEndpoint")
+	log.Println("CompleteTaskEndpoint")
 
 	params := mux.Vars(request)
 
@@ -142,7 +146,7 @@ func CompleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 }
 
 func DeleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("DeleteTaskEndpoint")
+	log.Println("DeleteTaskEndpoint")
 
 	params := mux.Vars(request)
 	_, err := redis.Client.Del(params["id"]).Result()
@@ -156,7 +160,7 @@ func DeleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 }
 
 func UpdateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
-	fmt.Println("UpdateTaskEndpoint")
+	log.Println("UpdateTaskEndpoint")
 
 	params := mux.Vars(request)
 
@@ -168,7 +172,7 @@ func UpdateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 	}
 
 	err = redis.Client.HMSet(params["id"], map[string]interface{}{
-		"name": updatedTask.Name,
+		"name": updatedTask.Name, // Обновляем толя имя таски
 	}).Err()
 	if err != nil {
 		http.Error(response, err.Error(), http.StatusInternalServerError)
