@@ -13,7 +13,7 @@ func main() {
 	router := routes.NewRouter()
 
 	c := cors.New(cors.Options{
-		AllowedMethods:   []string{"GET", "POST"},
+		AllowedMethods:   []string{"POST", "GET", "PUT", "DELETE"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})

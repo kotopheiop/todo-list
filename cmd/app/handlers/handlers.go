@@ -61,7 +61,6 @@ func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
 		return idI < idJ
 	})
 
-	fmt.Println(tasks)
 	json.NewEncoder(response).Encode(tasks)
 }
 

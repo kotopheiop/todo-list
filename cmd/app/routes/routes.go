@@ -8,13 +8,17 @@ import (
 
 func NewRouter() *mux.Router {
 	router := mux.NewRouter().StrictSlash(true)
-	// TODO: Переделать на запросы по методов GET, POST, PUT, DELETE...
+
+	// Создание подроута для '/api/task'
+	taskRouter := router.PathPrefix("/api/task").Subrouter()
+
+	taskRouter.HandleFunc("", handlers.CreateTaskEndpoint).Methods("POST")
+	taskRouter.HandleFunc("/{id}", handlers.GetTaskEndpoint).Methods("GET")
+	taskRouter.HandleFunc("/{id}", handlers.UpdateTaskEndpoint).Methods("PUT")
+	taskRouter.HandleFunc("/{id}", handlers.DeleteTaskEndpoint).Methods("DELETE")
+	taskRouter.HandleFunc("/{id}/complete", handlers.CompleteTaskEndpoint).Methods("PUT")
+
 	router.HandleFunc("/api/tasks", handlers.GetAllTasksEndpoint).Methods("GET")
-	router.HandleFunc("/api/task", handlers.CreateTaskEndpoint).Methods("POST")
-	router.HandleFunc("/api/task/{id}", handlers.GetTaskEndpoint).Methods("GET")
-	router.HandleFunc("/api/task/{id}/update", handlers.UpdateTaskEndpoint).Methods("POST")
-	router.HandleFunc("/api/task/{id}/delete", handlers.DeleteTaskEndpoint).Methods("POST")
-	router.HandleFunc("/api/task/{id}/complete", handlers.CompleteTaskEndpoint).Methods("POST")
 
 	return router
 }
