@@ -1,4 +1,5 @@
-# Todo List App
+# Todo List App [![Go version](https://img.shields.io/badge/go-1.21-blue.svg)](https://golang.org/dl/) [![license](http://img.shields.io/badge/license-MIT-green.svg?style=flat)](https://raw.githubusercontent.com/kotopheiop/todo-list/master/LICENSE) 
+
 
 Простое приложение для списка дел, созданное с помощью Go, Vue и Redis.
 
