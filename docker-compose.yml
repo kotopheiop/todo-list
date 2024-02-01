@@ -1,0 +1,42 @@
+version: '3.8'
+x-environment:
+  &default-environment
+  REDIS_PASSWORD: yourpassword
+  REDIS_PORT: 6379
+  REDIS_DATABASES: 1
+
+services:
+  back: # Go
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8075:8080"
+    environment:
+      <<: *default-environment
+    depends_on:
+      - redis
+    networks:
+      - app-network
+
+  front: # Vue
+    build: ./web/Todos
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+
+  redis:
+    image: "redis:alpine"
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass yourpassword
+    environment:
+      <<: *default-environment
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
