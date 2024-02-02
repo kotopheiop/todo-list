@@ -23,8 +23,6 @@ export default {
 
         const toast = useToast()
 
-        axios.defaults.baseURL = 'http://localhost:8075';
-
         function Add() {
             if (input.value.value !== "") {
                 axios.post('/api/task', {name: input.value.value})
