@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ServerHeader: "Fiber",
+		AppName:      "Todo List App v1.0.1",
+	})
 
 	app.Use(cors.New(cors.Config{
 		AllowMethods:     "POST,GET,PUT,DELETE",
@@ -17,8 +20,6 @@ func main() {
 	}))
 
 	routes.SetupRoutes(app)
-
-	log.Println("Server start")
 
 	log.Fatal(app.Listen(":8080"))
 }
