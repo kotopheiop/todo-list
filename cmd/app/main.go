@@ -1,32 +1,24 @@
 package main
 
 import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"log"
-	"net/http"
-	"time"
 	"todo-list/cmd/app/routes"
-
-	"github.com/rs/cors"
 )
 
 func main() {
-	router := routes.NewRouter()
+	app := fiber.New()
 
-	c := cors.New(cors.Options{
-		AllowedMethods:   []string{"POST", "GET", "PUT", "DELETE"},
-		AllowedHeaders:   []string{"*"},
+	app.Use(cors.New(cors.Config{
+		AllowMethods:     "POST,GET,PUT,DELETE",
+		AllowHeaders:     "*",
 		AllowCredentials: true,
-	})
+	}))
 
-	handler := c.Handler(router)
-
-	srv := &http.Server{
-		Handler:      handler,
-		Addr:         ":8080",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
+	routes.SetupRoutes(app)
 
 	log.Println("Server start")
-	log.Fatal(srv.ListenAndServe())
+
+	log.Fatal(app.Listen(":8080"))
 }

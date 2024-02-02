@@ -1,24 +1,19 @@
 package routes
 
 import (
+	"github.com/gofiber/fiber/v2"
 	"todo-list/cmd/app/handlers"
-
-	"github.com/gorilla/mux"
 )
 
-func NewRouter() *mux.Router {
-	router := mux.NewRouter().StrictSlash(true)
-
+func SetupRoutes(app *fiber.App) {
 	// Создание подроута для '/api'
-	apiRouter := router.PathPrefix("/api").Subrouter()
+	apiRouter := app.Group("/api")
 
-	apiRouter.HandleFunc("/task", handlers.CreateTaskEndpoint).Methods("POST")
-	apiRouter.HandleFunc("/task/{id}", handlers.GetTaskEndpoint).Methods("GET")
-	apiRouter.HandleFunc("/task/{id}", handlers.UpdateTaskEndpoint).Methods("PUT")
-	apiRouter.HandleFunc("/task/{id}", handlers.DeleteTaskEndpoint).Methods("DELETE")
-	apiRouter.HandleFunc("/task/{id}/complete", handlers.CompleteTaskEndpoint).Methods("PUT")
+	apiRouter.Post("/task", handlers.CreateTaskEndpoint)
+	apiRouter.Get("/task/:id", handlers.GetTaskEndpoint)
+	apiRouter.Put("/task/:id", handlers.UpdateTaskEndpoint)
+	apiRouter.Delete("/task/:id", handlers.DeleteTaskEndpoint)
+	apiRouter.Put("/task/:id/complete", handlers.CompleteTaskEndpoint)
 
-	router.HandleFunc("/api/tasks", handlers.GetAllTasksEndpoint).Methods("GET")
-
-	return router
+	apiRouter.Get("/tasks", handlers.GetAllTasksEndpoint)
 }

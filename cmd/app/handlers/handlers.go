@@ -3,13 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 	"sort"
 	"strconv"
 	"time"
 	"todo-list/tools/redis"
 
-	"github.com/gorilla/mux"
+	"github.com/gofiber/fiber/v2"
 )
 
 type Task struct {
@@ -19,21 +18,19 @@ type Task struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
+func GetAllTasksEndpoint(c *fiber.Ctx) error {
 	log.Println("GetAllTasksEndpoint")
 
 	keys, err := redis.Client.Keys("*").Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	tasks := make([]Task, 0)
 	for _, key := range keys {
 		dataType, err := redis.Client.Type(key).Result()
 		if err != nil {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-			return
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
 		if dataType != "hash" {
@@ -42,8 +39,7 @@ func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
 
 		taskMap, err := redis.Client.HGetAll(key).Result()
 		if err != nil {
-			http.Error(response, err.Error(), http.StatusInternalServerError)
-			return
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 
 		id, _ := strconv.Atoi(key)
@@ -61,24 +57,23 @@ func GetAllTasksEndpoint(response http.ResponseWriter, request *http.Request) {
 		return tasks[i].ID < tasks[j].ID
 	})
 
-	json.NewEncoder(response).Encode(tasks)
+	return c.JSON(tasks)
 }
 
-func CreateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
+func CreateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CreateTaskEndpoint")
 
 	var task Task
-	err := json.NewDecoder(request.Body).Decode(&task)
+	err := json.Unmarshal(c.Body(), &task)
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusBadRequest)
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	taskID, err := redis.Client.Incr("taskID").Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+
 	task.ID = int(taskID)
 	task.Complete = false
 	task.CreatedAt = time.Now()
@@ -89,44 +84,37 @@ func CreateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 		"created_at": task.CreatedAt.String(),
 	}).Err()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	response.WriteHeader(http.StatusCreated)
-	json.NewEncoder(response).Encode(task)
+	return c.Status(fiber.StatusCreated).JSON(task)
 }
-
-func GetTaskEndpoint(response http.ResponseWriter, request *http.Request) {
+func GetTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("GetTaskEndpoint")
-	params := mux.Vars(request)
 
-	result, err := redis.Client.HGetAll(params["id"]).Result()
+	id := c.Params("id")
+	result, err := redis.Client.HGetAll(id).Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	if len(result) == 0 {
-		http.Error(response, "Task not found", http.StatusNotFound)
-		return
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
 	}
 
 	complete, _ := strconv.ParseBool(result["complete"])
-	id, _ := strconv.Atoi(params["id"])
+	taskID, _ := strconv.Atoi(id)
 
-	json.NewEncoder(response).Encode(&Task{ID: id, Name: result["name"], Complete: complete})
+	return c.JSON(&Task{ID: taskID, Name: result["name"], Complete: complete})
 }
 
-func CompleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
+func CompleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CompleteTaskEndpoint")
 
-	params := mux.Vars(request)
-
-	currentValue, err := redis.Client.HGet(params["id"], "complete").Result()
+	id := c.Params("id")
+	currentValue, err := redis.Client.HGet(id, "complete").Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	newValue := "true"
@@ -134,50 +122,43 @@ func CompleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
 		newValue = "false"
 	}
 
-	_, err = redis.Client.HSet(params["id"], "complete", newValue).Result()
+	_, err = redis.Client.HSet(id, "complete", newValue).Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	response.WriteHeader(http.StatusOK)
-	response.Write([]byte("Статус задачи изменен"))
+	return c.SendString("Статус задачи изменен")
 }
 
-func DeleteTaskEndpoint(response http.ResponseWriter, request *http.Request) {
+func DeleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("DeleteTaskEndpoint")
 
-	params := mux.Vars(request)
-	_, err := redis.Client.Del(params["id"]).Result()
+	id := c.Params("id")
+	_, err := redis.Client.Del(id).Result()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	response.WriteHeader(http.StatusOK)
-	response.Write([]byte("Задача удалена"))
+	return c.SendString("Задача удалена")
 }
 
-func UpdateTaskEndpoint(response http.ResponseWriter, request *http.Request) {
+func UpdateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("UpdateTaskEndpoint")
 
-	params := mux.Vars(request)
+	id := c.Params("id")
 
 	var updatedTask Task
-	err := json.NewDecoder(request.Body).Decode(&updatedTask)
+	err := json.Unmarshal(c.Body(), &updatedTask)
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusBadRequest)
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	err = redis.Client.HMSet(params["id"], map[string]interface{}{
+	err = redis.Client.HMSet(id, map[string]interface{}{
 		"name": updatedTask.Name, // Обновляем толя имя таски
 	}).Err()
 	if err != nil {
-		http.Error(response, err.Error(), http.StatusInternalServerError)
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	response.WriteHeader(http.StatusOK)
-	response.Write([]byte("Задача обновлена"))
+	return c.SendString("Задача обновлена")
 }
