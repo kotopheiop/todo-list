@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// TODO: пересмотреть типы, оч.надо)
 type Task struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
