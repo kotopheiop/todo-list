@@ -27,12 +27,12 @@
                 v-show="task_edit.select_task_for_edit === true"/>
       </div>
       <div class="h-full mt-4">
-        <Task v-for="(mission , index) in missions" :key="mission.id" :input="mission.name"
-              @showFunc="missions.splice(index , 1), Delete(mission.id)"
-              @changeCondition="mission.complete = !mission.complete, ChangeCondition(mission.id)"
-              @edit="task_edit.index = mission.id , task_edit.select_task_for_edit = true , input.value = mission.name"
-              :Condition="[{'line-through': mission.complete} , {'border-green-500': mission.complete}]"
-              v-show="filter === 'all' ? true : (filter === 'done' ? mission.complete : !mission.complete)"
+        <Task v-for="(mission , index) in missions" :key="mission.ID" :input="mission.Name"
+              @showFunc="missions.splice(index , 1), Delete(mission.ID)"
+              @changeCondition="mission.Complete = !mission.Complete, ChangeCondition(mission.ID)"
+              @edit="task_edit.index = mission.ID , task_edit.select_task_for_edit = true , input.value = mission.Name"
+              :Condition="[{'line-through': mission.Complete} , {'border-green-500': mission.Complete}]"
+              v-show="filter === 'all' ? true : (filter === 'done' ? mission.Complete : !mission.Complete)"
         />
       </div>
     </div>

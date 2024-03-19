@@ -1,61 +1,19 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
-	"sort"
 	"strconv"
-	"time"
-	"todo-list/tools/redis"
+	"todo-list/cmd/app/database"
+	"todo-list/cmd/app/models"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-type Task struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Complete  bool      `json:"complete"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 func GetAllTasksEndpoint(c *fiber.Ctx) error {
 	log.Println("GetAllTasksEndpoint")
 
-	keys, err := redis.Client.Keys("*").Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	tasks := make([]Task, 0)
-	for _, key := range keys {
-		dataType, err := redis.Client.Type(key).Result()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-
-		if dataType != "hash" {
-			continue
-		}
-
-		taskMap, err := redis.Client.HGetAll(key).Result()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-		}
-
-		id, _ := strconv.Atoi(key)
-		complete, _ := strconv.ParseBool(taskMap["complete"])
-
-		task := Task{
-			ID:       id,
-			Name:     taskMap["name"],
-			Complete: complete,
-		}
-		tasks = append(tasks, task)
-	}
-
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].ID < tasks[j].ID
-	})
+	var tasks []models.Task
+	database.DB.Find(&tasks)
 
 	return c.JSON(tasks)
 }
@@ -63,81 +21,66 @@ func GetAllTasksEndpoint(c *fiber.Ctx) error {
 func CreateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CreateTaskEndpoint")
 
-	var task Task
-	err := json.Unmarshal(c.Body(), &task)
+	var task models.Task
+	err := c.BodyParser(&task)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	taskID, err := redis.Client.Incr("taskID").Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-
-	task.ID = int(taskID)
 	task.Complete = false
-	task.CreatedAt = time.Now()
 
-	err = redis.Client.HMSet(strconv.Itoa(task.ID), map[string]interface{}{
-		"name":       task.Name,
-		"complete":   strconv.FormatBool(task.Complete),
-		"created_at": task.CreatedAt.String(),
-	}).Err()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
+	database.DB.Create(&task)
 
 	return c.Status(fiber.StatusCreated).JSON(task)
 }
+
 func GetTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("GetTaskEndpoint")
 
-	id := c.Params("id")
-	result, err := redis.Client.HGetAll(id).Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
+	id, _ := strconv.Atoi(c.Params("id"))
 
-	if len(result) == 0 {
+	var task models.Task
+	database.DB.First(&task, id)
+
+	if task.ID == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
 	}
 
-	complete, _ := strconv.ParseBool(result["complete"])
-	taskID, _ := strconv.Atoi(id)
-
-	return c.JSON(&Task{ID: taskID, Name: result["name"], Complete: complete})
+	return c.JSON(task)
 }
 
 func CompleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CompleteTaskEndpoint")
 
-	id := c.Params("id")
-	currentValue, err := redis.Client.HGet(id, "complete").Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	id, _ := strconv.Atoi(c.Params("id"))
+
+	var task models.Task
+	database.DB.First(&task, id)
+
+	if task.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
 	}
 
-	newValue := "true"
-	if currentValue == "true" {
-		newValue = "false"
-	}
+	task.Complete = !task.Complete
 
-	_, err = redis.Client.HSet(id, "complete", newValue).Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
+	database.DB.Save(&task)
 
 	return c.SendString("Статус задачи изменен")
 }
 
 func DeleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("DeleteTaskEndpoint")
+	log.Println(c.Request())
+	id, _ := strconv.Atoi(c.Params("id"))
 
-	id := c.Params("id")
-	_, err := redis.Client.Del(id).Result()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	var task models.Task
+	database.DB.First(&task, id)
+
+	if task.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
 	}
+
+	database.DB.Delete(&task)
 
 	return c.SendString("Задача удалена")
 }
@@ -145,20 +88,24 @@ func DeleteTaskEndpoint(c *fiber.Ctx) error {
 func UpdateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("UpdateTaskEndpoint")
 
-	id := c.Params("id")
+	id, _ := strconv.Atoi(c.Params("id"))
 
-	var updatedTask Task
-	err := json.Unmarshal(c.Body(), &updatedTask)
+	var task models.Task
+	database.DB.First(&task, id)
+
+	if task.ID == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Task not found"})
+	}
+
+	var updatedTask models.Task
+	err := c.BodyParser(&updatedTask)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	err = redis.Client.HMSet(id, map[string]interface{}{
-		"name": updatedTask.Name, // Обновляем толя имя таски
-	}).Err()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
+	task.Name = updatedTask.Name
+
+	database.DB.Save(&task)
 
 	return c.SendString("Задача обновлена")
 }

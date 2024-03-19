@@ -1,19 +1,21 @@
 version: '3.8'
 x-environment:
   &default-environment
-  REDIS_PASSWORD: yourpassword
-  REDIS_PORT: 6379
-  REDIS_DATABASES: 1
+  MYSQL_ROOT_PASSWORD: yourpassword
+  MYSQL_DATABASE: yourdatabase
+  MYSQL_USER: youruser
+  MYSQL_PASSWORD: yourpassword
 
 services:
   back: # Go
     build:
       context: .
       dockerfile: Dockerfile
+    restart: always
     environment:
       <<: *default-environment
     depends_on:
-      - redis
+      - mysql
     networks:
       - app-network
 
@@ -22,10 +24,11 @@ services:
     networks:
       - app-network
 
-  redis:
-    image: "redis:alpine"
+  mysql:
+    image: "mysql:latest"
     restart: always
-    command: redis-server --requirepass yourpassword
+    ports:
+      - "3306:3306"
     environment:
       <<: *default-environment
     networks:
@@ -36,6 +39,7 @@ services:
   # каждого сервиса независимо друг от друга.
   proxy: # Nginx
     build: ./web/proxy
+    restart: always
     ports:
       - "8080:80"
     depends_on:

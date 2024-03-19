@@ -25,7 +25,7 @@ export default {
 
         function Add() {
             if (input.value.value !== "") {
-                axios.post('/api/task', {name: input.value.value})
+                axios.post('/api/task', {Name: input.value.value})
                     .then(response => {
                         missions.push(response.data);
                         input.value.value = "";
@@ -40,11 +40,11 @@ export default {
 
         function Edit() {
             if (task_edit.value.select_task_for_edit) {
-                axios.put(`/api/task/${task_edit.value.index}`, {name: input.value.value})
+                axios.put(`/api/task/${task_edit.value.index}`, {Name: input.value.value})
                     .then(response => {
-                        let mission = missions.find(mission => mission.id === task_edit.value.index);
+                        let mission = missions.find(mission => mission.ID === task_edit.value.index);
                         if (mission) {
-                            mission.name = input.value.value;
+                            mission.Name = input.value.value;
                         }
                         task_edit.value.select_task_for_edit = false;
                         input.value.value = "";
