@@ -1,25 +1,28 @@
-package handlers
+package redis
 
 import (
 	"encoding/json"
+	"github.com/gofiber/fiber/v2"
 	"log"
 	"sort"
 	"strconv"
-	"time"
-	"todo-list/tools/redis"
-
-	"github.com/gofiber/fiber/v2"
+	"todo-list/internal/controller/interfaces"
+	"todo-list/internal/redis"
 )
 
 type Task struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Complete  bool      `json:"complete"`
-	CreatedAt time.Time `json:"created_at"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Complete bool   `json:"complete"`
 }
 
-func GetAllTasksEndpoint(c *fiber.Ctx) error {
-	log.Println("GetAllTasksEndpoint")
+type Handler struct {
+}
+
+var _ interfaces.DataHandler = &Handler{}
+
+func (h *Handler) GetAllTasksEndpoint(c *fiber.Ctx) error {
+	log.Println("Redis - GetAllTasksEndpoint")
 
 	keys, err := redis.Client.Keys("*").Result()
 	if err != nil {
@@ -60,7 +63,7 @@ func GetAllTasksEndpoint(c *fiber.Ctx) error {
 	return c.JSON(tasks)
 }
 
-func CreateTaskEndpoint(c *fiber.Ctx) error {
+func (h *Handler) CreateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CreateTaskEndpoint")
 
 	var task Task
@@ -76,12 +79,10 @@ func CreateTaskEndpoint(c *fiber.Ctx) error {
 
 	task.ID = int(taskID)
 	task.Complete = false
-	task.CreatedAt = time.Now()
 
 	err = redis.Client.HMSet(strconv.Itoa(task.ID), map[string]interface{}{
-		"name":       task.Name,
-		"complete":   strconv.FormatBool(task.Complete),
-		"created_at": task.CreatedAt.String(),
+		"name":     task.Name,
+		"complete": strconv.FormatBool(task.Complete),
 	}).Err()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -89,7 +90,8 @@ func CreateTaskEndpoint(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(task)
 }
-func GetTaskEndpoint(c *fiber.Ctx) error {
+
+func (h *Handler) GetTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("GetTaskEndpoint")
 
 	id := c.Params("id")
@@ -108,7 +110,7 @@ func GetTaskEndpoint(c *fiber.Ctx) error {
 	return c.JSON(&Task{ID: taskID, Name: result["name"], Complete: complete})
 }
 
-func CompleteTaskEndpoint(c *fiber.Ctx) error {
+func (h *Handler) CompleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("CompleteTaskEndpoint")
 
 	id := c.Params("id")
@@ -130,7 +132,7 @@ func CompleteTaskEndpoint(c *fiber.Ctx) error {
 	return c.SendString("Статус задачи изменен")
 }
 
-func DeleteTaskEndpoint(c *fiber.Ctx) error {
+func (h *Handler) DeleteTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("DeleteTaskEndpoint")
 
 	id := c.Params("id")
@@ -142,7 +144,7 @@ func DeleteTaskEndpoint(c *fiber.Ctx) error {
 	return c.SendString("Задача удалена")
 }
 
-func UpdateTaskEndpoint(c *fiber.Ctx) error {
+func (h *Handler) UpdateTaskEndpoint(c *fiber.Ctx) error {
 	log.Println("UpdateTaskEndpoint")
 
 	id := c.Params("id")
