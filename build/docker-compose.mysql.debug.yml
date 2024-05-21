@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  phpmyadmin:
+    image: 'phpmyadmin/phpmyadmin:latest'
+    restart: always
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=${MYSQL_USER}
+      - PMA_PASSWORD=${MYSQL_PASSWORD}
+    ports:
+      - '8081:80'
+    networks:
+      - app-network

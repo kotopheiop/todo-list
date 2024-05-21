@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  back: # Go
+    build:
+      context: ..
+      dockerfile: build/Dockerfile
+    restart: always
+    environment:
+      - DB_CLIENT=${DB_CLIENT}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_DATABASES=${REDIS_DATABASES}
+    depends_on:
+      - ${DB_CLIENT}
+    networks:
+      - app-network
+
+  front: # Vue
+    build:
+      context: ../web/front
+    networks:
+      - app-network
+
+  proxy: # Nginx
+    build:
+      context: ../web/proxy
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - front
+      - back
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
